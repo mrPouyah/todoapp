@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ClassFlow</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">Class management</p>
+        <h1>ClassFlow</h1>
+      </div>
+      <div class="header-actions">
+        <button class="ghost-button" id="exportData" type="button">Export</button>
+        <label class="ghost-button file-button" for="importData">Import</label>
+        <input id="importData" type="file" accept="application/json">
+      </div>
+    </header>
+
+    <main class="app-shell">
+      <aside class="sidebar" aria-label="Primary">
+        <button class="nav-item active" data-view="dashboard" type="button">Dashboard</button>
+        <button class="nav-item" data-view="students" type="button">Students</button>
+        <button class="nav-item" data-view="sessions" type="button">Sessions</button>
+        <button class="nav-item" data-view="homework" type="button">Homework</button>
+        <button class="nav-item" data-view="syllabus" type="button">Syllabus</button>
+        <button class="nav-item" data-view="lessonPlans" type="button">Lesson Plans</button>
+      </aside>
+
+      <section class="content">
+        <section class="view active" id="dashboardView">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Today</p>
+              <h2>Teaching overview</h2>
+            </div>
+            <button class="primary-button" data-open-view="sessions" type="button">Add session</button>
+          </div>
+
+          <div class="metric-grid">
+            <article class="metric-card">
+              <span id="studentCount">0</span>
+              <p>Students</p>
+            </article>
+            <article class="metric-card">
+              <span id="sessionCount">0</span>
+              <p>Sessions</p>
+            </article>
+            <article class="metric-card">
+              <span id="homeworkCount">0</span>
+              <p>Open homework</p>
+            </article>
+            <article class="metric-card">
+              <span id="lessonPlanCount">0</span>
+              <p>Lesson plans</p>
+            </article>
+          </div>
+
+          <div class="dashboard-grid">
+            <article class="panel">
+              <h3>Current session</h3>
+              <div id="currentSession" class="empty-state">No session marked current yet.</div>
+            </article>
+            <article class="panel">
+              <h3>Next session</h3>
+              <div id="nextSession" class="empty-state">Add upcoming sessions to see the next one here.</div>
+            </article>
+            <article class="panel wide">
+              <h3>Homework due soon</h3>
+              <div id="dueSoonList" class="list-stack"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" id="studentsView">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Roster</p>
+              <h2>Students</h2>
+            </div>
+          </div>
+          <form class="form-grid" id="studentForm">
+            <input name="name" placeholder="Student name" required>
+            <input name="level" placeholder="Level or class">
+            <input name="contact" placeholder="Contact">
+            <button class="primary-button" type="submit">Add student</button>
+          </form>
+          <div id="studentsList" class="list-grid"></div>
+        </section>
+
+        <section class="view" id="sessionsView">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Timeline</p>
+              <h2>Sessions</h2>
+            </div>
+          </div>
+          <form class="form-grid" id="sessionForm">
+            <input name="title" placeholder="Session title" required>
+            <input name="date" type="date" required>
+            <select name="status">
+              <option value="upcoming">Upcoming</option>
+              <option value="current">Current</option>
+              <option value="completed">Completed</option>
+            </select>
+            <textarea name="notes" placeholder="Session notes"></textarea>
+            <button class="primary-button" type="submit">Add session</button>
+          </form>
+          <div id="sessionsList" class="list-grid"></div>
+        </section>
+
+        <section class="view" id="homeworkView">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Assignments</p>
+              <h2>Homework</h2>
+            </div>
+          </div>
+          <form class="form-grid" id="homeworkForm">
+            <input name="title" placeholder="Homework title" required>
+            <input name="dueDate" type="date" required>
+            <select name="studentId" id="homeworkStudentSelect">
+              <option value="">All students</option>
+            </select>
+            <textarea name="details" placeholder="Details"></textarea>
+            <button class="primary-button" type="submit">Add homework</button>
+          </form>
+          <div id="homeworkList" class="list-grid"></div>
+        </section>
+
+        <section class="view" id="syllabusView">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Curriculum</p>
+              <h2>Syllabus</h2>
+            </div>
+          </div>
+          <form class="form-grid" id="syllabusForm">
+            <input name="topic" placeholder="Topic" required>
+            <input name="targetDate" type="date">
+            <select name="status">
+              <option value="planned">Planned</option>
+              <option value="in-progress">In progress</option>
+              <option value="done">Done</option>
+            </select>
+            <textarea name="resources" placeholder="Resources or notes"></textarea>
+            <button class="primary-button" type="submit">Add topic</button>
+          </form>
+          <div id="syllabusList" class="list-grid"></div>
+        </section>
+
+        <section class="view" id="lessonPlansView">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Preparation</p>
+              <h2>Lesson Plans</h2>
+            </div>
+          </div>
+          <form class="form-grid" id="lessonPlanForm">
+            <input name="title" placeholder="Plan title" required>
+            <input name="sessionDate" type="date">
+            <textarea name="objectives" placeholder="Objectives"></textarea>
+            <textarea name="activities" placeholder="Activities"></textarea>
+            <button class="primary-button" type="submit">Add plan</button>
+          </form>
+          <div id="lessonPlansList" class="list-grid"></div>
+        </section>
+      </section>
+    </main>
+
+    <template id="itemTemplate">
+      <article class="item-card">
+        <div class="item-card-header">
+          <div>
+            <h3></h3>
+            <p class="meta"></p>
+          </div>
+          <button class="icon-button" type="button" aria-label="Delete item">Delete</button>
+        </div>
+        <p class="body-text"></p>
+      </article>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
