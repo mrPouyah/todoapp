@@ -1,98 +1,116 @@
-const STORAGE_KEY = "classflow-data-v1";
+const STORAGE_KEY = "classflow-data-v2";
+const LEGACY_STORAGE_KEY = "classflow-data-v1";
 
 const seedData = {
+  selectedStudentId: "",
   students: [],
   sessions: [],
   homework: [],
-  syllabus: [],
   lessonPlans: [],
 };
 
 let state = loadState();
 
-const views = {
-  dashboard: document.querySelector("#dashboardView"),
-  students: document.querySelector("#studentsView"),
-  sessions: document.querySelector("#sessionsView"),
-  homework: document.querySelector("#homeworkView"),
-  syllabus: document.querySelector("#syllabusView"),
-  lessonPlans: document.querySelector("#lessonPlansView"),
+const elements = {
+  emptyWorkspace: document.querySelector("#emptyWorkspace"),
+  studentWorkspace: document.querySelector("#studentWorkspace"),
+  studentTabs: document.querySelector("#studentTabs"),
+  selectedStudentName: document.querySelector("#selectedStudentName"),
+  selectedStudentMeta: document.querySelector("#selectedStudentMeta"),
+  studentSessionCount: document.querySelector("#studentSessionCount"),
+  studentHomeworkCount: document.querySelector("#studentHomeworkCount"),
+  studentLessonPlanCount: document.querySelector("#studentLessonPlanCount"),
+  sessionsList: document.querySelector("#sessionsList"),
+  homeworkList: document.querySelector("#homeworkList"),
+  lessonPlansList: document.querySelector("#lessonPlansList"),
 };
-
-document.querySelectorAll(".nav-item").forEach((button) => {
-  button.addEventListener("click", () => showView(button.dataset.view));
-});
-
-document.querySelectorAll("[data-open-view]").forEach((button) => {
-  button.addEventListener("click", () => showView(button.dataset.openView));
-});
 
 document.querySelector("#studentForm").addEventListener("submit", (event) => {
   event.preventDefault();
   const data = formData(event.currentTarget);
-  state.students.push({
+  const student = {
     id: createId(),
-    name: data.name,
-    level: data.level,
-    contact: data.contact,
-  });
+    name: data.name.trim(),
+    level: data.level.trim(),
+    contact: data.contact.trim(),
+  };
+
+  state.students.push(student);
+  state.selectedStudentId = student.id;
   saveAndRender(event.currentTarget);
 });
 
 document.querySelector("#sessionForm").addEventListener("submit", (event) => {
   event.preventDefault();
+  const student = selectedStudent();
+  if (!student) return;
+
   const data = formData(event.currentTarget);
   if (data.status === "current") {
-    state.sessions = state.sessions.map((session) => ({ ...session, status: "upcoming" }));
+    state.sessions = state.sessions.map((session) => (
+      session.studentId === student.id ? { ...session, status: "upcoming" } : session
+    ));
   }
+
   state.sessions.push({
     id: createId(),
-    title: data.title,
+    studentId: student.id,
+    title: data.title.trim(),
     date: data.date,
     status: data.status,
-    notes: data.notes,
+    notes: data.notes.trim(),
   });
   saveAndRender(event.currentTarget);
 });
 
 document.querySelector("#homeworkForm").addEventListener("submit", (event) => {
   event.preventDefault();
+  const student = selectedStudent();
+  if (!student) return;
+
   const data = formData(event.currentTarget);
   state.homework.push({
     id: createId(),
-    title: data.title,
+    studentId: student.id,
+    title: data.title.trim(),
     dueDate: data.dueDate,
-    studentId: data.studentId,
-    details: data.details,
+    details: data.details.trim(),
     done: false,
-  });
-  saveAndRender(event.currentTarget);
-});
-
-document.querySelector("#syllabusForm").addEventListener("submit", (event) => {
-  event.preventDefault();
-  const data = formData(event.currentTarget);
-  state.syllabus.push({
-    id: createId(),
-    topic: data.topic,
-    targetDate: data.targetDate,
-    status: data.status,
-    resources: data.resources,
   });
   saveAndRender(event.currentTarget);
 });
 
 document.querySelector("#lessonPlanForm").addEventListener("submit", (event) => {
   event.preventDefault();
+  const student = selectedStudent();
+  if (!student) return;
+
   const data = formData(event.currentTarget);
   state.lessonPlans.push({
     id: createId(),
-    title: data.title,
+    studentId: student.id,
+    title: data.title.trim(),
     sessionDate: data.sessionDate,
-    objectives: data.objectives,
-    activities: data.activities,
+    objectives: data.objectives.trim(),
+    activities: data.activities.trim(),
   });
   saveAndRender(event.currentTarget);
+});
+
+document.querySelector("#deleteStudent").addEventListener("click", () => {
+  const student = selectedStudent();
+  if (!student) return;
+
+  const confirmed = confirm(`Delete ${student.name} and all of their sessions, homework, and lesson plans?`);
+  if (!confirmed) return;
+
+  state.students = state.students.filter((item) => item.id !== student.id);
+  state.sessions = state.sessions.filter((item) => item.studentId !== student.id);
+  state.homework = state.homework.filter((item) => item.studentId !== student.id);
+  state.lessonPlans = state.lessonPlans.filter((item) => item.studentId !== student.id);
+  state.selectedStudentId = state.students[0]?.id || "";
+  persist();
+  render();
 });
 
 document.querySelector("#exportData").addEventListener("click", () => {
@@ -109,8 +127,7 @@ document.querySelector("#importData").addEventListener("change", async (event) =
   if (!file) return;
 
   try {
-    const imported = JSON.parse(await file.text());
-    state = { ...seedData, ...imported };
+    state = normalizeState(JSON.parse(await file.text()));
     persist();
     render();
   } catch {
@@ -125,14 +142,41 @@ function formData(form) {
 }
 
 function loadState() {
-  const saved = localStorage.getItem(STORAGE_KEY);
+  const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
   if (!saved) return structuredClone(seedData);
 
   try {
-    return { ...structuredClone(seedData), ...JSON.parse(saved) };
+    return normalizeState(JSON.parse(saved));
   } catch {
     return structuredClone(seedData);
   }
+}
+
+function normalizeState(value) {
+  const normalized = { ...structuredClone(seedData), ...value };
+  normalized.students = Array.isArray(normalized.students) ? normalized.students : [];
+  normalized.sessions = Array.isArray(normalized.sessions) ? normalized.sessions : [];
+  normalized.homework = Array.isArray(normalized.homework) ? normalized.homework : [];
+  normalized.lessonPlans = Array.isArray(normalized.lessonPlans) ? normalized.lessonPlans : [];
+
+  const fallbackStudentId = normalized.students[0]?.id || "";
+  normalized.sessions = normalized.sessions.map((item) => ({
+    ...item,
+    studentId: item.studentId || fallbackStudentId,
+  }));
+  normalized.homework = normalized.homework.map((item) => ({
+    ...item,
+    studentId: item.studentId || fallbackStudentId,
+    done: Boolean(item.done),
+  }));
+  normalized.lessonPlans = normalized.lessonPlans.map((item) => ({
+    ...item,
+    studentId: item.studentId || fallbackStudentId,
+  }));
+
+  const hasSelected = normalized.students.some((student) => student.id === normalized.selectedStudentId);
+  normalized.selectedStudentId = hasSelected ? normalized.selectedStudentId : fallbackStudentId;
+  return normalized;
 }
 
 function createId() {
@@ -150,123 +194,112 @@ function saveAndRender(form) {
   render();
 }
 
-function showView(viewName) {
-  Object.entries(views).forEach(([name, view]) => {
-    view.classList.toggle("active", name === viewName);
-  });
-  document.querySelectorAll(".nav-item").forEach((button) => {
-    button.classList.toggle("active", button.dataset.view === viewName);
-  });
+function selectedStudent() {
+  return state.students.find((student) => student.id === state.selectedStudentId);
+}
+
+function selectStudent(studentId) {
+  state.selectedStudentId = studentId;
+  persist();
+  render();
 }
 
 function render() {
-  renderDashboard();
-  renderStudents();
-  renderSessions();
-  renderHomework();
-  renderSyllabus();
-  renderLessonPlans();
-  renderStudentOptions();
+  renderStudentTabs();
+  renderWorkspace();
 }
 
-function renderDashboard() {
-  setText("#studentCount", state.students.length);
-  setText("#sessionCount", state.sessions.length);
-  setText("#homeworkCount", state.homework.filter((item) => !item.done).length);
-  setText("#lessonPlanCount", state.lessonPlans.length);
+function renderStudentTabs() {
+  elements.studentTabs.innerHTML = "";
 
-  const current = state.sessions.find((session) => session.status === "current");
-  renderSpotlight("#currentSession", current, "No session marked current yet.");
-
-  const next = state.sessions
-    .filter((session) => session.status !== "completed" && session.date)
-    .sort((a, b) => a.date.localeCompare(b.date))[0];
-  renderSpotlight("#nextSession", next, "Add upcoming sessions to see the next one here.");
-
-  const dueSoon = state.homework
-    .filter((item) => !item.done)
-    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
-    .slice(0, 4);
-  renderList("#dueSoonList", dueSoon, (item) => ({
-    title: item.title,
-    meta: `${formatDate(item.dueDate)} • ${studentName(item.studentId)}`,
-    body: item.details || "No details added.",
-  }), "No open homework yet.");
-}
-
-function renderSpotlight(selector, session, emptyText) {
-  const container = document.querySelector(selector);
-  if (!session) {
-    container.className = "empty-state";
-    container.textContent = emptyText;
+  if (!state.students.length) {
+    elements.studentTabs.innerHTML = '<div class="empty-state">No students yet.</div>';
     return;
   }
-  container.className = "list-stack";
-  container.innerHTML = `
-    <strong>${escapeHtml(session.title)}</strong>
-    <span class="meta">${formatDate(session.date)} • ${escapeHtml(session.status)}</span>
-    <p class="body-text">${escapeHtml(session.notes || "No notes added.")}</p>
-  `;
+
+  state.students.forEach((student) => {
+    const button = document.createElement("button");
+    button.className = "student-tab";
+    button.type = "button";
+    button.classList.toggle("active", student.id === state.selectedStudentId);
+    button.innerHTML = `
+      <span>${escapeHtml(student.name)}</span>
+      <small>${escapeHtml(student.level || "No level")}</small>
+    `;
+    button.addEventListener("click", () => selectStudent(student.id));
+    elements.studentTabs.append(button);
+  });
 }
 
-function renderStudents() {
-  renderList("#studentsList", state.students, (student) => ({
-    title: student.name,
-    meta: [student.level, student.contact].filter(Boolean).join(" • ") || "No extra details.",
-    body: "",
-  }), "No students added yet.", "students");
-}
+function renderWorkspace() {
+  const student = selectedStudent();
+  const hasStudent = Boolean(student);
+  elements.emptyWorkspace.classList.toggle("hidden", hasStudent);
+  elements.studentWorkspace.classList.toggle("hidden", !hasStudent);
+  if (!student) return;
 
-function renderSessions() {
-  const sessions = [...state.sessions].sort((a, b) => b.date.localeCompare(a.date));
-  renderList("#sessionsList", sessions, (session) => ({
+  const sessions = state.sessions
+    .filter((item) => item.studentId === student.id)
+    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  const homework = state.homework
+    .filter((item) => item.studentId === student.id)
+    .sort((a, b) => (a.dueDate || "").localeCompare(b.dueDate || ""));
+  const lessonPlans = state.lessonPlans
+    .filter((item) => item.studentId === student.id)
+    .sort((a, b) => (a.sessionDate || "").localeCompare(b.sessionDate || ""));
+
+  elements.selectedStudentName.textContent = student.name;
+  elements.selectedStudentMeta.textContent = [student.level, student.contact].filter(Boolean).join(" - ") || "No details added.";
+  elements.studentSessionCount.textContent = sessions.length;
+  elements.studentHomeworkCount.textContent = homework.filter((item) => !item.done).length;
+  elements.studentLessonPlanCount.textContent = lessonPlans.length;
+
+  renderList(elements.sessionsList, sessions, (session) => ({
     title: session.title,
-    meta: formatDate(session.date),
-    body: `${session.notes || "No notes added."}\n\nStatus: ${session.status}`,
-  }), "No sessions added yet.", "sessions");
-}
+    meta: `${formatDate(session.date)} - ${session.status}`,
+    body: session.notes || "No notes added.",
+    actions: [
+      {
+        label: "Delete",
+        className: "danger-action",
+        onClick: () => deleteItem("sessions", session.id),
+      },
+    ],
+  }), "No sessions for this student yet.");
 
-function renderHomework() {
-  const homework = [...state.homework].sort((a, b) => a.dueDate.localeCompare(b.dueDate));
-  renderList("#homeworkList", homework, (item) => ({
+  renderList(elements.homeworkList, homework, (item) => ({
     title: item.title,
-    meta: `${formatDate(item.dueDate)} • ${studentName(item.studentId)} • ${item.done ? "Done" : "Open"}`,
+    meta: `${formatDate(item.dueDate)} - ${item.done ? "Done" : "Open"}`,
     body: item.details || "No details added.",
-  }), "No homework added yet.", "homework");
-}
+    actions: [
+      {
+        label: item.done ? "Reopen" : "Done",
+        className: "ghost-button small-action",
+        onClick: () => toggleHomework(item.id),
+      },
+      {
+        label: "Delete",
+        className: "danger-action",
+        onClick: () => deleteItem("homework", item.id),
+      },
+    ],
+  }), "No homework assigned to this student yet.");
 
-function renderSyllabus() {
-  renderList("#syllabusList", state.syllabus, (item) => ({
-    title: item.topic,
-    meta: `${item.status}${item.targetDate ? ` • ${formatDate(item.targetDate)}` : ""}`,
-    body: item.resources || "No resources added.",
-  }), "No syllabus topics added yet.", "syllabus");
-}
-
-function renderLessonPlans() {
-  const plans = [...state.lessonPlans].sort((a, b) => (a.sessionDate || "").localeCompare(b.sessionDate || ""));
-  renderList("#lessonPlansList", plans, (plan) => ({
+  renderList(elements.lessonPlansList, lessonPlans, (plan) => ({
     title: plan.title,
     meta: plan.sessionDate ? formatDate(plan.sessionDate) : "No date set.",
     body: `Objectives:\n${plan.objectives || "Not added."}\n\nActivities:\n${plan.activities || "Not added."}`,
-  }), "No lesson plans added yet.", "lessonPlans");
+    actions: [
+      {
+        label: "Delete",
+        className: "danger-action",
+        onClick: () => deleteItem("lessonPlans", plan.id),
+      },
+    ],
+  }), "No lesson plans for this student yet.");
 }
 
-function renderStudentOptions() {
-  const select = document.querySelector("#homeworkStudentSelect");
-  const selected = select.value;
-  select.innerHTML = '<option value="">All students</option>';
-  state.students.forEach((student) => {
-    const option = document.createElement("option");
-    option.value = student.id;
-    option.textContent = student.name;
-    select.append(option);
-  });
-  select.value = selected;
-}
-
-function renderList(selector, items, mapItem, emptyText, collectionName) {
-  const container = document.querySelector(selector);
+function renderList(container, items, mapItem, emptyText) {
   container.innerHTML = "";
 
   if (!items.length) {
@@ -280,20 +313,17 @@ function renderList(selector, items, mapItem, emptyText, collectionName) {
     card.querySelector("h3").textContent = viewModel.title;
     card.querySelector(".meta").textContent = viewModel.meta;
     card.querySelector(".body-text").textContent = viewModel.body;
-    const deleteButton = card.querySelector("button");
-    if (collectionName) {
-      if (collectionName === "homework") {
-        const toggleButton = document.createElement("button");
-        toggleButton.className = "ghost-button small-action";
-        toggleButton.type = "button";
-        toggleButton.textContent = item.done ? "Reopen" : "Done";
-        toggleButton.addEventListener("click", () => toggleHomework(item.id));
-        card.querySelector(".item-card-header").append(toggleButton);
-      }
-      deleteButton.addEventListener("click", () => deleteItem(collectionName, item.id));
-    } else {
-      deleteButton.remove();
-    }
+
+    const actions = card.querySelector(".item-actions");
+    viewModel.actions.forEach((action) => {
+      const button = document.createElement("button");
+      button.className = action.className;
+      button.type = "button";
+      button.textContent = action.label;
+      button.addEventListener("click", action.onClick);
+      actions.append(button);
+    });
+
     container.append(card);
   });
 }
@@ -312,11 +342,6 @@ function deleteItem(collectionName, id) {
   render();
 }
 
-function studentName(studentId) {
-  if (!studentId) return "All students";
-  return state.students.find((student) => student.id === studentId)?.name || "Unknown student";
-}
-
 function formatDate(value) {
   if (!value) return "No date";
   return new Intl.DateTimeFormat(undefined, {
@@ -324,10 +349,6 @@ function formatDate(value) {
     day: "numeric",
     year: "numeric",
   }).format(new Date(`${value}T00:00:00`));
-}
-
-function setText(selector, value) {
-  document.querySelector(selector).textContent = value;
 }
 
 function escapeHtml(value) {

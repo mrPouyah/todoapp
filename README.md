@@ -1,15 +1,14 @@
 # ClassFlow
 
-ClassFlow is a free, deployable class management app for teachers. It helps you track students, sessions, homework, syllabus topics, and lesson plans for current and upcoming classes.
+ClassFlow is a free, deployable student-first class management app for teachers. Add a student, select that student as the main tab, then manage their class sessions, homework, and lesson plans.
 
 ## Features
 
-- Student roster with level and contact notes
-- Session planning with current, upcoming, and completed states
-- Homework tracking by due date and student
-- Syllabus topic planning
-- Lesson plans with objectives and activities
-- Dashboard for current session, next session, and homework due soon
+- Student tabs as the primary navigation
+- Per-student session planning with current, upcoming, and completed states
+- Per-student homework tracking with open and done states
+- Per-student lesson plans with objectives and activities
+- JSON import and export for backups
 - Browser-based storage with JSON import and export
 
 ## Run locally
