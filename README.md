@@ -24,3 +24,7 @@ This is a static app, so it can be deployed on:
 - Vercel
 
 The app stores data in the browser's local storage. Use Export regularly to keep a backup of class data.
+
+## Android APK
+
+The repository includes a minimal Android WebView wrapper that packages the static app into an installable APK. GitHub Actions builds a debug APK from `.github/workflows/build-android.yml`.

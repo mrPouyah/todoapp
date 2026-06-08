@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ClassFlow</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">Student-first class manager</p>
+        <h1>ClassFlow</h1>
+      </div>
+      <div class="header-actions">
+        <button class="ghost-button" id="exportData" type="button">Export</button>
+        <label class="ghost-button file-button" for="importData">Import</label>
+        <input id="importData" type="file" accept="application/json">
+      </div>
+    </header>
+
+    <main class="app-shell">
+      <aside class="student-rail" aria-label="Students">
+        <form class="student-form" id="studentForm">
+          <label>
+            <span>Student name</span>
+            <input name="name" placeholder="Add student" required>
+          </label>
+          <label>
+            <span>Level or class</span>
+            <input name="level" placeholder="Example: B1, IELTS">
+          </label>
+          <label>
+            <span>Contact</span>
+            <input name="contact" placeholder="Phone, email, note">
+          </label>
+          <button class="primary-button" type="submit">Add student</button>
+        </form>
+
+        <div class="rail-heading">
+          <p class="eyebrow">Main Tabs</p>
+          <h2>Students</h2>
+        </div>
+        <div id="studentTabs" class="student-tabs"></div>
+      </aside>
+
+      <section class="content">
+        <section class="empty-workspace" id="emptyWorkspace">
+          <p class="eyebrow">Start here</p>
+          <h2>Add a student to manage their classes.</h2>
+          <p>Each student gets their own sessions, homework, and lesson plans.</p>
+        </section>
+
+        <section class="student-workspace hidden" id="studentWorkspace">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Selected student</p>
+              <h2 id="selectedStudentName">Student</h2>
+              <p class="meta" id="selectedStudentMeta"></p>
+            </div>
+            <button class="danger-button" id="deleteStudent" type="button">Delete student</button>
+          </div>
+
+          <div class="metric-grid">
+            <article class="metric-card">
+              <span id="studentSessionCount">0</span>
+              <p>Sessions</p>
+            </article>
+            <article class="metric-card">
+              <span id="studentHomeworkCount">0</span>
+              <p>Open homework</p>
+            </article>
+            <article class="metric-card">
+              <span id="studentLessonPlanCount">0</span>
+              <p>Lesson plans</p>
+            </article>
+          </div>
+
+          <div class="workspace-grid">
+            <article class="panel">
+              <div class="panel-heading">
+                <h3>Class sessions</h3>
+              </div>
+              <form class="stack-form" id="sessionForm">
+                <input name="title" placeholder="Session title" required>
+                <div class="inline-fields">
+                  <input name="date" type="date" required>
+                  <select name="status">
+                    <option value="upcoming">Upcoming</option>
+                    <option value="current">Current</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                </div>
+                <textarea name="notes" placeholder="What happened or what should happen in this session"></textarea>
+                <button class="primary-button" type="submit">Add session</button>
+              </form>
+              <div id="sessionsList" class="list-stack"></div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-heading">
+                <h3>Homework</h3>
+              </div>
+              <form class="stack-form" id="homeworkForm">
+                <input name="title" placeholder="Homework title" required>
+                <input name="dueDate" type="date" required>
+                <textarea name="details" placeholder="Homework details"></textarea>
+                <button class="primary-button" type="submit">Assign homework</button>
+              </form>
+              <div id="homeworkList" class="list-stack"></div>
+            </article>
+
+            <article class="panel wide">
+              <div class="panel-heading">
+                <h3>Lesson plans</h3>
+              </div>
+              <form class="stack-form lesson-form" id="lessonPlanForm">
+                <input name="title" placeholder="Lesson plan title" required>
+                <input name="sessionDate" type="date">
+                <textarea name="objectives" placeholder="Objectives"></textarea>
+                <textarea name="activities" placeholder="Activities"></textarea>
+                <button class="primary-button" type="submit">Add lesson plan</button>
+              </form>
+              <div id="lessonPlansList" class="list-grid"></div>
+            </article>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <template id="itemTemplate">
+      <article class="item-card">
+        <div class="item-card-header">
+          <div>
+            <h3></h3>
+            <p class="meta"></p>
+          </div>
+          <div class="item-actions"></div>
+        </div>
+        <p class="body-text"></p>
+      </article>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
