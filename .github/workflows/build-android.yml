@@ -14,6 +14,9 @@ on:
       - "settings.gradle"
       - ".github/workflows/build-android.yml"
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -41,3 +44,17 @@ jobs:
         with:
           name: classflow-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Publish APK to GitHub Pages
+        if: github.ref == 'refs/heads/main'
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk /tmp/classflow-debug.apk
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin gh-pages
+          git checkout gh-pages
+          mkdir -p downloads
+          cp /tmp/classflow-debug.apk downloads/classflow-debug.apk
+          git add downloads/classflow-debug.apk
+          git commit -m "Publish Android APK" || exit 0
+          git push origin gh-pages
