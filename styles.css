@@ -450,9 +450,7 @@ button:focus-visible {
   }
 
   .student-rail {
-    position: sticky;
-    top: 0;
-    z-index: 2;
+    position: static;
   }
 
   .student-tabs {
