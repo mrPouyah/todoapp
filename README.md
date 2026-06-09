@@ -5,9 +5,11 @@ ClassFlow is a free, deployable student-first class management app for teachers.
 ## Features
 
 - Student tabs as the primary navigation
+- Editable per-student session count
+- Per-student tabs for overview, sessions, syllabus, and homework
 - Per-student session planning with current, upcoming, and completed states
+- Current and next session syllabus and lesson plan notes
 - Per-student homework tracking with open and done states
-- Per-student lesson plans with objectives and activities
 - JSON import and export for backups
 - Browser-based storage with JSON import and export
 

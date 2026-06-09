@@ -1,8 +1,9 @@
-const STORAGE_KEY = "classflow-data-v2";
-const LEGACY_STORAGE_KEY = "classflow-data-v1";
+const STORAGE_KEY = "classflow-data-v3";
+const LEGACY_STORAGE_KEYS = ["classflow-data-v2", "classflow-data-v1"];
 
 const seedData = {
   selectedStudentId: "",
+  selectedSection: "overview",
   students: [],
   sessions: [],
   homework: [],
@@ -17,26 +18,64 @@ const elements = {
   studentTabs: document.querySelector("#studentTabs"),
   selectedStudentName: document.querySelector("#selectedStudentName"),
   selectedStudentMeta: document.querySelector("#selectedStudentMeta"),
-  studentSessionCount: document.querySelector("#studentSessionCount"),
+  editStudentForm: document.querySelector("#editStudentForm"),
+  studentSessionProgress: document.querySelector("#studentSessionProgress"),
   studentHomeworkCount: document.querySelector("#studentHomeworkCount"),
-  studentLessonPlanCount: document.querySelector("#studentLessonPlanCount"),
+  nextSessionDate: document.querySelector("#nextSessionDate"),
+  currentSessionCard: document.querySelector("#currentSessionCard"),
+  nextSessionCard: document.querySelector("#nextSessionCard"),
+  overviewHomeworkList: document.querySelector("#overviewHomeworkList"),
   sessionsList: document.querySelector("#sessionsList"),
   homeworkList: document.querySelector("#homeworkList"),
-  lessonPlansList: document.querySelector("#lessonPlansList"),
+  currentSyllabusForm: document.querySelector("#currentSyllabusForm"),
+  nextSyllabusForm: document.querySelector("#nextSyllabusForm"),
 };
 
 document.querySelector("#studentForm").addEventListener("submit", (event) => {
   event.preventDefault();
   const data = formData(event.currentTarget);
-  const student = {
+  const student = normalizeStudent({
     id: createId(),
-    name: data.name.trim(),
-    level: data.level.trim(),
-    contact: data.contact.trim(),
-  };
+    name: data.name,
+    level: data.level,
+    contact: data.contact,
+    plannedSessions: data.plannedSessions,
+  });
 
   state.students.push(student);
   state.selectedStudentId = student.id;
+  state.selectedSection = "overview";
+  saveAndRender(event.currentTarget);
+});
+
+document.querySelector("#editStudent").addEventListener("click", () => {
+  const student = selectedStudent();
+  if (!student) return;
+
+  elements.editStudentForm.name.value = student.name;
+  elements.editStudentForm.level.value = student.level;
+  elements.editStudentForm.contact.value = student.contact;
+  elements.editStudentForm.plannedSessions.value = student.plannedSessions || "";
+  elements.editStudentForm.classList.remove("hidden");
+});
+
+document.querySelector("#cancelEditStudent").addEventListener("click", () => {
+  elements.editStudentForm.reset();
+  elements.editStudentForm.classList.add("hidden");
+});
+
+elements.editStudentForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const student = selectedStudent();
+  if (!student) return;
+
+  const data = formData(event.currentTarget);
+  state.students = state.students.map((item) => (
+    item.id === student.id
+      ? normalizeStudent({ ...item, ...data })
+      : item
+  ));
+  elements.editStudentForm.classList.add("hidden");
   saveAndRender(event.currentTarget);
 });
 
@@ -80,37 +119,34 @@ document.querySelector("#homeworkForm").addEventListener("submit", (event) => {
   saveAndRender(event.currentTarget);
 });
 
-document.querySelector("#lessonPlanForm").addEventListener("submit", (event) => {
+elements.currentSyllabusForm.addEventListener("submit", (event) => {
   event.preventDefault();
-  const student = selectedStudent();
-  if (!student) return;
-
-  const data = formData(event.currentTarget);
-  state.lessonPlans.push({
-    id: createId(),
-    studentId: student.id,
-    title: data.title.trim(),
-    sessionDate: data.sessionDate,
-    objectives: data.objectives.trim(),
-    activities: data.activities.trim(),
+  updateSelectedStudent({
+    currentSyllabus: event.currentTarget.currentSyllabus.value.trim(),
+    currentLessonPlan: event.currentTarget.currentLessonPlan.value.trim(),
   });
-  saveAndRender(event.currentTarget);
+});
+
+elements.nextSyllabusForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  updateSelectedStudent({
+    nextSyllabus: event.currentTarget.nextSyllabus.value.trim(),
+    nextLessonPlan: event.currentTarget.nextLessonPlan.value.trim(),
+  });
 });
 
 document.querySelector("#deleteStudent").addEventListener("click", () => {
   const student = selectedStudent();
   if (!student) return;
+  deleteStudent(student.id);
+});
 
-  const confirmed = confirm(`Delete ${student.name} and all of their sessions, homework, and lesson plans?`);
-  if (!confirmed) return;
-
-  state.students = state.students.filter((item) => item.id !== student.id);
-  state.sessions = state.sessions.filter((item) => item.studentId !== student.id);
-  state.homework = state.homework.filter((item) => item.studentId !== student.id);
-  state.lessonPlans = state.lessonPlans.filter((item) => item.studentId !== student.id);
-  state.selectedStudentId = state.students[0]?.id || "";
-  persist();
-  render();
+document.querySelectorAll(".workspace-tab").forEach((button) => {
+  button.addEventListener("click", () => {
+    state.selectedSection = button.dataset.section;
+    persist();
+    renderWorkspaceTabs();
+  });
 });
 
 document.querySelector("#exportData").addEventListener("click", () => {
@@ -142,7 +178,8 @@ function formData(form) {
 }
 
 function loadState() {
-  const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
+  const keys = [STORAGE_KEY, ...LEGACY_STORAGE_KEYS];
+  const saved = keys.map((key) => localStorage.getItem(key)).find(Boolean);
   if (!saved) return structuredClone(seedData);
 
   try {
@@ -154,7 +191,7 @@ function loadState() {
 
 function normalizeState(value) {
   const normalized = { ...structuredClone(seedData), ...value };
-  normalized.students = Array.isArray(normalized.students) ? normalized.students : [];
+  normalized.students = Array.isArray(normalized.students) ? normalized.students.map(normalizeStudent) : [];
   normalized.sessions = Array.isArray(normalized.sessions) ? normalized.sessions : [];
   normalized.homework = Array.isArray(normalized.homework) ? normalized.homework : [];
   normalized.lessonPlans = Array.isArray(normalized.lessonPlans) ? normalized.lessonPlans : [];
@@ -162,21 +199,46 @@ function normalizeState(value) {
   const fallbackStudentId = normalized.students[0]?.id || "";
   normalized.sessions = normalized.sessions.map((item) => ({
     ...item,
+    id: item.id || createId(),
     studentId: item.studentId || fallbackStudentId,
+    title: item.title || "Class session",
+    status: item.status || "upcoming",
+    notes: item.notes || "",
   }));
   normalized.homework = normalized.homework.map((item) => ({
     ...item,
+    id: item.id || createId(),
     studentId: item.studentId || fallbackStudentId,
+    title: item.title || "Homework",
+    details: item.details || "",
     done: Boolean(item.done),
   }));
   normalized.lessonPlans = normalized.lessonPlans.map((item) => ({
     ...item,
+    id: item.id || createId(),
     studentId: item.studentId || fallbackStudentId,
   }));
 
   const hasSelected = normalized.students.some((student) => student.id === normalized.selectedStudentId);
   normalized.selectedStudentId = hasSelected ? normalized.selectedStudentId : fallbackStudentId;
+  normalized.selectedSection = ["overview", "sessions", "syllabus", "homework"].includes(normalized.selectedSection)
+    ? normalized.selectedSection
+    : "overview";
   return normalized;
+}
+
+function normalizeStudent(student) {
+  return {
+    id: student.id || createId(),
+    name: String(student.name || "Student").trim(),
+    level: String(student.level || "").trim(),
+    contact: String(student.contact || "").trim(),
+    plannedSessions: Math.max(0, Number.parseInt(student.plannedSessions, 10) || 0),
+    currentSyllabus: String(student.currentSyllabus || "").trim(),
+    currentLessonPlan: String(student.currentLessonPlan || "").trim(),
+    nextSyllabus: String(student.nextSyllabus || "").trim(),
+    nextLessonPlan: String(student.nextLessonPlan || "").trim(),
+  };
 }
 
 function createId() {
@@ -198,8 +260,49 @@ function selectedStudent() {
   return state.students.find((student) => student.id === state.selectedStudentId);
 }
 
+function selectedStudentSessions() {
+  const student = selectedStudent();
+  if (!student) return [];
+  return state.sessions
+    .filter((item) => item.studentId === student.id)
+    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+}
+
+function selectedStudentHomework() {
+  const student = selectedStudent();
+  if (!student) return [];
+  return state.homework
+    .filter((item) => item.studentId === student.id)
+    .sort((a, b) => (a.dueDate || "").localeCompare(b.dueDate || ""));
+}
+
 function selectStudent(studentId) {
   state.selectedStudentId = studentId;
+  state.selectedSection = "overview";
+  elements.editStudentForm.classList.add("hidden");
+  persist();
+  render();
+}
+
+function updateSelectedStudent(changes) {
+  const student = selectedStudent();
+  if (!student) return;
+
+  state.students = state.students.map((item) => (
+    item.id === student.id ? normalizeStudent({ ...item, ...changes }) : item
+  ));
+  persist();
+  render();
+}
+
+function deleteStudent(studentId) {
+  state.students = state.students.filter((item) => item.id !== studentId);
+  state.sessions = state.sessions.filter((item) => item.studentId !== studentId);
+  state.homework = state.homework.filter((item) => item.studentId !== studentId);
+  state.lessonPlans = state.lessonPlans.filter((item) => item.studentId !== studentId);
+  state.selectedStudentId = state.students[0]?.id || "";
+  state.selectedSection = "overview";
+  elements.editStudentForm.classList.add("hidden");
   persist();
   render();
 }
@@ -224,7 +327,7 @@ function renderStudentTabs() {
     button.classList.toggle("active", student.id === state.selectedStudentId);
     button.innerHTML = `
       <span>${escapeHtml(student.name)}</span>
-      <small>${escapeHtml(student.level || "No level")}</small>
+      <small>${escapeHtml(student.level || "No level")} - ${sessionProgressText(student)}</small>
     `;
     button.addEventListener("click", () => selectStudent(student.id));
     elements.studentTabs.append(button);
@@ -238,22 +341,66 @@ function renderWorkspace() {
   elements.studentWorkspace.classList.toggle("hidden", !hasStudent);
   if (!student) return;
 
-  const sessions = state.sessions
-    .filter((item) => item.studentId === student.id)
-    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
-  const homework = state.homework
-    .filter((item) => item.studentId === student.id)
-    .sort((a, b) => (a.dueDate || "").localeCompare(b.dueDate || ""));
-  const lessonPlans = state.lessonPlans
-    .filter((item) => item.studentId === student.id)
-    .sort((a, b) => (a.sessionDate || "").localeCompare(b.sessionDate || ""));
+  const sessions = selectedStudentSessions();
+  const homework = selectedStudentHomework();
+  const currentSession = sessions.find((session) => session.status === "current");
+  const nextSession = [...sessions]
+    .filter((session) => session.status !== "completed")
+    .sort((a, b) => (a.date || "").localeCompare(b.date || ""))[0];
 
   elements.selectedStudentName.textContent = student.name;
-  elements.selectedStudentMeta.textContent = [student.level, student.contact].filter(Boolean).join(" - ") || "No details added.";
-  elements.studentSessionCount.textContent = sessions.length;
+  elements.selectedStudentMeta.textContent = [
+    student.level,
+    student.contact,
+    `${sessions.length} of ${student.plannedSessions || 0} sessions`,
+  ].filter(Boolean).join(" - ");
+  elements.studentSessionProgress.textContent = `${sessions.length} / ${student.plannedSessions || 0}`;
   elements.studentHomeworkCount.textContent = homework.filter((item) => !item.done).length;
-  elements.studentLessonPlanCount.textContent = lessonPlans.length;
+  elements.nextSessionDate.textContent = nextSession ? formatDate(nextSession.date) : "No date";
 
+  fillSyllabusForms(student);
+  renderSpotlight(elements.currentSessionCard, currentSession, student.currentSyllabus, student.currentLessonPlan, "No current session yet.");
+  renderSpotlight(elements.nextSessionCard, nextSession, student.nextSyllabus, student.nextLessonPlan, "No upcoming session yet.");
+  renderSessions(sessions);
+  renderHomework(homework);
+  renderOverviewHomework(homework);
+  renderWorkspaceTabs();
+}
+
+function renderWorkspaceTabs() {
+  document.querySelectorAll(".workspace-tab").forEach((button) => {
+    button.classList.toggle("active", button.dataset.section === state.selectedSection);
+  });
+  document.querySelectorAll(".workspace-section").forEach((section) => {
+    section.classList.toggle("active", section.id === `${state.selectedSection}Section`);
+  });
+}
+
+function fillSyllabusForms(student) {
+  elements.currentSyllabusForm.currentSyllabus.value = student.currentSyllabus;
+  elements.currentSyllabusForm.currentLessonPlan.value = student.currentLessonPlan;
+  elements.nextSyllabusForm.nextSyllabus.value = student.nextSyllabus;
+  elements.nextSyllabusForm.nextLessonPlan.value = student.nextLessonPlan;
+}
+
+function renderSpotlight(container, session, syllabus, lessonPlan, emptyText) {
+  if (!session && !syllabus && !lessonPlan) {
+    container.className = "empty-state";
+    container.textContent = emptyText;
+    return;
+  }
+
+  container.className = "spotlight-card";
+  container.innerHTML = `
+    <strong>${escapeHtml(session?.title || "No session selected")}</strong>
+    <span class="meta">${escapeHtml(session ? `${formatDate(session.date)} - ${session.status}` : "Syllabus only")}</span>
+    <p class="body-text">${escapeHtml(session?.notes || "No session notes.")}</p>
+    <p class="body-text"><strong>Syllabus:</strong>\n${escapeHtml(syllabus || "Not added.")}</p>
+    <p class="body-text"><strong>Lesson plan:</strong>\n${escapeHtml(lessonPlan || "Not added.")}</p>
+  `;
+}
+
+function renderSessions(sessions) {
   renderList(elements.sessionsList, sessions, (session) => ({
     title: session.title,
     meta: `${formatDate(session.date)} - ${session.status}`,
@@ -266,7 +413,9 @@ function renderWorkspace() {
       },
     ],
   }), "No sessions for this student yet.");
+}
 
+function renderHomework(homework) {
   renderList(elements.homeworkList, homework, (item) => ({
     title: item.title,
     meta: `${formatDate(item.dueDate)} - ${item.done ? "Done" : "Open"}`,
@@ -284,19 +433,22 @@ function renderWorkspace() {
       },
     ],
   }), "No homework assigned to this student yet.");
+}
 
-  renderList(elements.lessonPlansList, lessonPlans, (plan) => ({
-    title: plan.title,
-    meta: plan.sessionDate ? formatDate(plan.sessionDate) : "No date set.",
-    body: `Objectives:\n${plan.objectives || "Not added."}\n\nActivities:\n${plan.activities || "Not added."}`,
+function renderOverviewHomework(homework) {
+  const openHomework = homework.filter((item) => !item.done).slice(0, 4);
+  renderList(elements.overviewHomeworkList, openHomework, (item) => ({
+    title: item.title,
+    meta: formatDate(item.dueDate),
+    body: item.details || "No details added.",
     actions: [
       {
-        label: "Delete",
-        className: "danger-action",
-        onClick: () => deleteItem("lessonPlans", plan.id),
+        label: "Done",
+        className: "ghost-button small-action",
+        onClick: () => toggleHomework(item.id),
       },
     ],
-  }), "No lesson plans for this student yet.");
+  }), "No open homework for this student.");
 }
 
 function renderList(container, items, mapItem, emptyText) {
@@ -340,6 +492,11 @@ function deleteItem(collectionName, id) {
   state[collectionName] = state[collectionName].filter((item) => item.id !== id);
   persist();
   render();
+}
+
+function sessionProgressText(student) {
+  const count = state.sessions.filter((session) => session.studentId === student.id).length;
+  return `${count}/${student.plannedSessions || 0} sessions`;
 }
 
 function formatDate(value) {

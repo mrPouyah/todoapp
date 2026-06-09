@@ -31,6 +31,10 @@
             <input name="level" placeholder="Example: B1, IELTS">
           </label>
           <label>
+            <span>Number of sessions</span>
+            <input name="plannedSessions" type="number" min="0" step="1" placeholder="Example: 12">
+          </label>
+          <label>
             <span>Contact</span>
             <input name="contact" placeholder="Phone, email, note">
           </label>
@@ -48,7 +52,7 @@
         <section class="empty-workspace" id="emptyWorkspace">
           <p class="eyebrow">Start here</p>
           <h2>Add a student to manage their classes.</h2>
-          <p>Each student gets their own sessions, homework, and lesson plans.</p>
+          <p>Each student gets their own sessions, syllabus, homework, and planning tabs.</p>
         </section>
 
         <section class="student-workspace hidden" id="studentWorkspace">
@@ -58,25 +62,75 @@
               <h2 id="selectedStudentName">Student</h2>
               <p class="meta" id="selectedStudentMeta"></p>
             </div>
-            <button class="danger-button" id="deleteStudent" type="button">Delete student</button>
+            <div class="header-actions compact-actions">
+              <button class="ghost-button" id="editStudent" type="button">Edit</button>
+              <button class="danger-button" id="deleteStudent" type="button">Delete</button>
+            </div>
           </div>
+
+          <form class="edit-student-form hidden" id="editStudentForm">
+            <label>
+              <span>Name</span>
+              <input name="name" required>
+            </label>
+            <label>
+              <span>Level or class</span>
+              <input name="level">
+            </label>
+            <label>
+              <span>Number of sessions</span>
+              <input name="plannedSessions" type="number" min="0" step="1">
+            </label>
+            <label>
+              <span>Contact</span>
+              <input name="contact">
+            </label>
+            <div class="form-actions">
+              <button class="primary-button" type="submit">Save</button>
+              <button class="ghost-button" id="cancelEditStudent" type="button">Cancel</button>
+            </div>
+          </form>
 
           <div class="metric-grid">
             <article class="metric-card">
-              <span id="studentSessionCount">0</span>
-              <p>Sessions</p>
+              <span id="studentSessionProgress">0 / 0</span>
+              <p>Sessions planned</p>
             </article>
             <article class="metric-card">
               <span id="studentHomeworkCount">0</span>
               <p>Open homework</p>
             </article>
             <article class="metric-card">
-              <span id="studentLessonPlanCount">0</span>
-              <p>Lesson plans</p>
+              <span id="nextSessionDate">No date</span>
+              <p>Next session</p>
             </article>
           </div>
 
-          <div class="workspace-grid">
+          <nav class="workspace-tabs" aria-label="Student sections">
+            <button class="workspace-tab active" data-section="overview" type="button">Overview</button>
+            <button class="workspace-tab" data-section="sessions" type="button">Sessions</button>
+            <button class="workspace-tab" data-section="syllabus" type="button">Syllabus</button>
+            <button class="workspace-tab" data-section="homework" type="button">Homework</button>
+          </nav>
+
+          <section class="workspace-section active" id="overviewSection">
+            <div class="dashboard-grid">
+              <article class="panel">
+                <h3>Current session</h3>
+                <div id="currentSessionCard" class="empty-state">No current session yet.</div>
+              </article>
+              <article class="panel">
+                <h3>Next session</h3>
+                <div id="nextSessionCard" class="empty-state">No upcoming session yet.</div>
+              </article>
+              <article class="panel wide">
+                <h3>Open homework</h3>
+                <div id="overviewHomeworkList" class="list-stack"></div>
+              </article>
+            </div>
+          </section>
+
+          <section class="workspace-section" id="sessionsSection">
             <article class="panel">
               <div class="panel-heading">
                 <h3>Class sessions</h3>
@@ -96,7 +150,30 @@
               </form>
               <div id="sessionsList" class="list-stack"></div>
             </article>
+          </section>
 
+          <section class="workspace-section" id="syllabusSection">
+            <div class="dashboard-grid">
+              <article class="panel">
+                <h3>Current session syllabus</h3>
+                <form class="stack-form" id="currentSyllabusForm">
+                  <textarea name="currentSyllabus" placeholder="Topics, pages, resources, or speaking goals"></textarea>
+                  <textarea name="currentLessonPlan" placeholder="Lesson plan for the current session"></textarea>
+                  <button class="primary-button" type="submit">Save current plan</button>
+                </form>
+              </article>
+              <article class="panel">
+                <h3>Next session syllabus</h3>
+                <form class="stack-form" id="nextSyllabusForm">
+                  <textarea name="nextSyllabus" placeholder="Topics, pages, resources, or speaking goals"></textarea>
+                  <textarea name="nextLessonPlan" placeholder="Lesson plan for the next session"></textarea>
+                  <button class="primary-button" type="submit">Save next plan</button>
+                </form>
+              </article>
+            </div>
+          </section>
+
+          <section class="workspace-section" id="homeworkSection">
             <article class="panel">
               <div class="panel-heading">
                 <h3>Homework</h3>
@@ -109,21 +186,7 @@
               </form>
               <div id="homeworkList" class="list-stack"></div>
             </article>
-
-            <article class="panel wide">
-              <div class="panel-heading">
-                <h3>Lesson plans</h3>
-              </div>
-              <form class="stack-form lesson-form" id="lessonPlanForm">
-                <input name="title" placeholder="Lesson plan title" required>
-                <input name="sessionDate" type="date">
-                <textarea name="objectives" placeholder="Objectives"></textarea>
-                <textarea name="activities" placeholder="Activities"></textarea>
-                <button class="primary-button" type="submit">Add lesson plan</button>
-              </form>
-              <div id="lessonPlansList" class="list-grid"></div>
-            </article>
-          </div>
+          </section>
         </section>
       </section>
     </main>
